@@ -39,11 +39,11 @@ func (rt *Router) Lookup(path string) (data interface{}, params []Param, found b
 	if data, found := rt.static[path]; found {
 		return data, nil, true
 	}
-	nodes, idx, values := rt.param.lookup(path, nil)
-	if nodes == nil {
+	idx, values, found := rt.param.lookup(path, nil, 0)
+	if !found {
 		return nil, nil, false
 	}
-	nd := nodes[idx]
+	nd := rt.param.node[idx]
 	if nd == nil {
 		return nil, nil, false
 	}
@@ -99,39 +99,68 @@ func newBaseCheckArray(size int) []baseCheck {
 type baseCheck struct {
 	base      int
 	check     int
-	hasParams bool
+	paramType paramType
 }
 
-func (da *doubleArray) lookup(path string, params []string) (map[int]*node, int, []string) {
-	idx := 0
-	var indexes []int64
+type paramType uint8
+
+func (p paramType) IsParam() bool {
+	return p&paramTypeSingle == paramTypeSingle
+}
+
+func (p paramType) IsWildcard() bool {
+	return p&paramTypeWildcard == paramTypeWildcard
+}
+
+func (p paramType) IsAny() bool {
+	return p > 0
+}
+
+func (p *paramType) SetSingle() {
+	*p |= paramTypeSingle
+}
+
+func (p *paramType) SetWildcard() {
+	*p |= paramTypeWildcard
+}
+
+const (
+	paramTypeSingle = 1 << iota
+	paramTypeWildcard
+)
+
+func (da *doubleArray) lookup(path string, params []string, idx int) (int, []string, bool) {
+	indices := make([]uint64, 0, 1)
 	for i := 0; i < len(path); i++ {
+		if da.bc[idx].paramType.IsAny() {
+			indices = append(indices, (uint64(i&0xffffffff)<<32)|uint64(idx&0xffffffff))
+		}
 		next := nextIndex(da.bc[idx].base, path[i])
 		if da.bc[next].check != idx {
-			goto PARAMED_ROUTE
+			goto BACKTRACKING
 		}
 		idx = next
-		if da.bc[idx].hasParams {
-			indexes = append(indexes, int64(((i+1)&0xffffffff)<<32)|int64(idx&0xffffffff))
-		}
 	}
-	return da.node, idx, params
-PARAMED_ROUTE:
-	for i := len(indexes) - 1; i >= 0; i-- {
-		curIdx, idx := int((indexes[i]>>32)&0xffffffff), int(indexes[i]&0xffffffff)
-		nd := da.node[idx]
-		if nd.paramTree != nil {
-			i := NextSeparator(path, curIdx)
-			remaining, params := path[i:], append(params, path[curIdx:i])
-			if nodes, idx, params := nd.paramTree.lookup(remaining, params); nodes != nil {
-				return nodes, idx, params
+	return idx, params, true
+BACKTRACKING:
+	for j := len(indices) - 1; j >= 0; j-- {
+		i, idx := int((indices[j]>>32)&0xffffffff), int(indices[j]&0xffffffff)
+		if da.bc[idx].paramType.IsParam() {
+			next := NextSeparator(path, i)
+			idx := nextIndex(da.bc[idx].base, ParamCharacter)
+			params := append(params, path[i:next])
+			path := path[next:]
+			if idx, params, found := da.lookup(path, params, idx); found {
+				return idx, params, true
 			}
 		}
-		if nd.wildcardTree != nil {
-			return nd.wildcardTree.node, 0, append(params, path[curIdx:])
+		if da.bc[idx].paramType.IsWildcard() {
+			idx := nextIndex(da.bc[idx].base, WildcardCharacter)
+			params := append(params, path[i:])
+			return idx, params, true
 		}
 	}
-	return nil, -1, nil
+	return -1, nil, false
 }
 
 // build builds double-array from records.
@@ -149,41 +178,31 @@ func (da *doubleArray) build(srcs []*record, idx, depth int) error {
 		da.node[idx] = nd
 	}
 	for _, sib := range siblings {
-		if !IsMetaChar(sib.c) {
-			da.setCheck(nextIndex(base, sib.c), idx)
-		}
+		da.setCheck(nextIndex(base, sib.c), idx)
 	}
 	for _, sib := range siblings {
-		switch records := srcs[sib.start:sib.end]; sib.c {
+		records := srcs[sib.start:sib.end]
+		switch sib.c {
 		case ParamCharacter:
 			for _, r := range records {
-				next := NextSeparator(r.Key, depth)
+				next := NextSeparator(r.Key, depth+1)
 				name := r.Key[depth+1 : next]
 				r.paramNames = append(r.paramNames, name)
 				r.Key = r.Key[next:]
 			}
-			if da.node[idx] == nil {
-				da.node[idx] = &node{}
-			}
-			da.node[idx].paramTree = newDoubleArray(blockSize)
-			da.bc[idx].hasParams = true
-			if err := da.node[idx].paramTree.build(records, 0, 0); err != nil {
+			da.bc[idx].paramType.SetSingle()
+			if err := da.build(records, nextIndex(base, sib.c), 0); err != nil {
 				return err
 			}
 		case WildcardCharacter:
-			if da.node[idx] == nil {
-				da.node[idx] = &node{}
-			}
 			r := records[0]
 			name := r.Key[depth+1:]
 			r.paramNames = append(r.paramNames, name)
-			da.node[idx].wildcardTree = newDoubleArray(0)
-			nd, err := makeNode(r)
-			if err != nil {
+			r.Key = ""
+			da.bc[idx].paramType.SetWildcard()
+			if err := da.build(records, nextIndex(base, sib.c), 0); err != nil {
 				return err
 			}
-			da.node[idx].wildcardTree.node[0] = nd
-			da.bc[idx].hasParams = true
 		default:
 			if err := da.build(records, nextIndex(base, sib.c), depth+1); err != nil {
 				return err
@@ -227,9 +246,6 @@ func (da *doubleArray) findBase(siblings []sibling, start int) (base int) {
 		base = nextIndex(idx, firstChar)
 		i := 0
 		for ; i < len(siblings); i++ {
-			if IsMetaChar(siblings[i].c) {
-				continue
-			}
 			if next := nextIndex(base, siblings[i].c); da.bc[next].base != 0 || da.bc[next].check != -1 {
 				break
 			}
@@ -258,12 +274,6 @@ func (da *doubleArray) arrange(records []*record, idx, depth int) (base int, sib
 // node represents a node of Double-Array.
 type node struct {
 	data interface{}
-
-	// Tree of path parameter.
-	paramTree *doubleArray
-
-	// Tree of wildcard path parameter.
-	wildcardTree *doubleArray
 
 	// Names of path parameters.
 	paramNames []string
@@ -305,7 +315,7 @@ func makeSiblings(records []*record, depth int) (sib []sibling, leaf *record, er
 		n  int
 	)
 	for i, r := range records {
-		if len(r.Key) == depth {
+		if len(r.Key) <= depth {
 			leaf = r
 			continue
 		}
