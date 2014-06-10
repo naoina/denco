@@ -39,7 +39,7 @@ func (rt *Router) Lookup(path string) (data interface{}, params []Param, found b
 	if data, found := rt.static[path]; found {
 		return data, nil, true
 	}
-	idx, values, found := rt.param.lookup(path, nil, 0)
+	idx, values, found := rt.param.lookup(path, nil, 1)
 	if !found {
 		return nil, nil, false
 	}
@@ -62,7 +62,7 @@ func (rt *Router) Build(records []Record) error {
 	for _, r := range statics {
 		rt.static[r.Key] = r.Value
 	}
-	if err := rt.param.build(params, 0, 0); err != nil {
+	if err := rt.param.build(params, 1, 0); err != nil {
 		return err
 	}
 	return nil
@@ -81,18 +81,14 @@ type doubleArray struct {
 
 func newDoubleArray(size int) *doubleArray {
 	return &doubleArray{
-		bc:   newBaseCheckArray(size),
+		bc:   newBaseCheckArray(size + 1),
 		node: []*node{nil}, // A start index is adjusting to 1 because 0 will be used as a mark of non-existent node.
 	}
 }
 
 // newBaseCheckArray returns a new slice of baseCheck with given size.
 func newBaseCheckArray(size int) []baseCheck {
-	bc := make([]baseCheck, size)
-	for i := 0; i < len(bc); i++ {
-		bc[i].check = -1
-	}
-	return bc
+	return make([]baseCheck, size)
 }
 
 // baseCheck represents a BASE/CHECK node.
@@ -233,7 +229,7 @@ func (da *doubleArray) extendBaseCheckArray() {
 func (da *doubleArray) findEmptyIndex(start int) int {
 	i := start
 	for ; i < len(da.bc); i++ {
-		if da.bc[i].base == 0 && da.bc[i].check == -1 {
+		if da.bc[i].base == 0 && da.bc[i].check == 0 {
 			break
 		}
 	}
@@ -248,7 +244,7 @@ func (da *doubleArray) findBase(siblings []sibling, start int) (base int) {
 		base = nextIndex(idx, firstChar)
 		i := 0
 		for ; i < len(siblings); i++ {
-			if next := nextIndex(base, siblings[i].c); da.bc[next].base != 0 || da.bc[next].check != -1 {
+			if next := nextIndex(base, siblings[i].c); len(da.bc) <= next || da.bc[next].base != 0 || da.bc[next].check != 0 {
 				break
 			}
 		}
