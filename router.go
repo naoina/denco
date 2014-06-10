@@ -43,7 +43,7 @@ func (rt *Router) Lookup(path string) (data interface{}, params []Param, found b
 	if !found {
 		return nil, nil, false
 	}
-	nd := rt.param.node[idx]
+	nd := rt.param.node[rt.param.bc[idx].i]
 	if nd == nil {
 		return nil, nil, false
 	}
@@ -76,13 +76,13 @@ type Param struct {
 
 type doubleArray struct {
 	bc   []baseCheck
-	node map[int]*node
+	node []*node
 }
 
 func newDoubleArray(size int) *doubleArray {
 	return &doubleArray{
 		bc:   newBaseCheckArray(size),
-		node: make(map[int]*node),
+		node: []*node{nil}, // A start index is adjusting to 1 because 0 will be used as a mark of non-existent node.
 	}
 }
 
@@ -100,6 +100,7 @@ type baseCheck struct {
 	base      int
 	check     int
 	paramType paramType
+	i         int
 }
 
 type paramType uint8
@@ -175,7 +176,8 @@ func (da *doubleArray) build(srcs []*record, idx, depth int) error {
 		if err != nil {
 			return err
 		}
-		da.node[idx] = nd
+		da.bc[idx].i = len(da.node)
+		da.node = append(da.node, nd)
 	}
 	for _, sib := range siblings {
 		da.setCheck(nextIndex(base, sib.c), idx)
