@@ -16,9 +16,6 @@ const (
 
 	// TerminalCharacter is a special character for end of path.
 	TerminationCharacter = '#'
-
-	// Block size of array of BASE/CHECK of Double-Array.
-	blockSize = 256
 )
 
 // Router represents a URL router.
@@ -31,7 +28,7 @@ type Router struct {
 func New() *Router {
 	return &Router{
 		static: make(map[string]interface{}),
-		param:  newDoubleArray(blockSize),
+		param:  newDoubleArray(),
 	}
 }
 
@@ -82,16 +79,11 @@ type doubleArray struct {
 	node []*node
 }
 
-func newDoubleArray(size int) *doubleArray {
+func newDoubleArray() *doubleArray {
 	return &doubleArray{
-		bc:   newBaseCheckArray(size + 1),
+		bc:   []baseCheck{0},
 		node: []*node{nil}, // A start index is adjusting to 1 because 0 will be used as a mark of non-existent node.
 	}
-}
-
-// newBaseCheckArray returns a new slice of baseCheck with given size.
-func newBaseCheckArray(size int) []baseCheck {
-	return make([]baseCheck, size)
 }
 
 // baseCheck contains BASE, CHECK and Extra flags.
@@ -158,7 +150,7 @@ func (da *doubleArray) lookup(path string, params []string, idx int) (int, []str
 		}
 		c := path[i]
 		next := nextIndex(da.bc[idx].Base(), c)
-		if da.bc[next].Check() != c {
+		if next >= len(da.bc) || da.bc[next].Check() != c {
 			goto BACKTRACKING
 		}
 		idx = next
@@ -173,6 +165,9 @@ BACKTRACKING:
 		if da.bc[idx].IsSingleParam() {
 			next := NextSeparator(path, i)
 			idx := nextIndex(da.bc[idx].Base(), ParamCharacter)
+			if idx >= len(da.bc) {
+				break
+			}
 			params := append(params, path[i:next])
 			path := path[next:]
 			if idx, params, found := da.lookup(path, params, idx); found {
@@ -248,11 +243,6 @@ func (da *doubleArray) setCheck(i int, check byte) {
 	da.bc[i].SetCheck(check)
 }
 
-// extendBaseCheckArray extends array of BASE/CHECK.
-func (da *doubleArray) extendBaseCheckArray() {
-	da.bc = append(da.bc, newBaseCheckArray(blockSize)...)
-}
-
 // findEmptyIndex returns an index of unused BASE/CHECK node.
 func (da *doubleArray) findEmptyIndex(start int) int {
 	i := start
@@ -275,7 +265,7 @@ func (da *doubleArray) findBase(siblings []sibling, start int, usedBase map[int]
 		for ; i < len(siblings); i++ {
 			next := nextIndex(base, siblings[i].c)
 			if len(da.bc) <= next {
-				da.extendBaseCheckArray()
+				da.bc = append(da.bc, make([]baseCheck, next-len(da.bc)+1)...)
 			}
 			if !da.bc[next].IsEmpty() {
 				break
