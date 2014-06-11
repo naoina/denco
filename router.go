@@ -46,7 +46,7 @@ func (rt *Router) Lookup(path string) (data interface{}, params []Param, found b
 	if !found {
 		return nil, nil, false
 	}
-	nd := rt.param.node[-rt.param.bc[idx].base]
+	nd := rt.param.node[rt.param.bc[idx].Index()]
 	if nd == nil {
 		return nil, nil, false
 	}
@@ -94,71 +94,93 @@ func newBaseCheckArray(size int) []baseCheck {
 	return make([]baseCheck, size)
 }
 
-// baseCheck represents a BASE/CHECK node.
-type baseCheck struct {
-	base      int
-	check     byte
-	paramType paramType
+// baseCheck contains BASE, CHECK and Extra flags.
+// From the top, 22bits of BASE, 2bits of Extra flags and 8bits of CHECK.
+//
+//  BASE (22bit) | Extra flags (2bit) | CHECK (8bit)
+// |----------------------|--|--------|
+// 32                    10  8         0
+type baseCheck uint32
+
+func (bc baseCheck) Base() int {
+	return int(bc >> 10)
 }
 
-type paramType uint8
-
-func (p paramType) IsParam() bool {
-	return p&paramTypeSingle == paramTypeSingle
+func (bc *baseCheck) SetBase(base int) {
+	*bc |= baseCheck(base) << 10
 }
 
-func (p paramType) IsWildcard() bool {
-	return p&paramTypeWildcard == paramTypeWildcard
+func (bc baseCheck) Check() byte {
+	return byte(bc & 0xff)
 }
 
-func (p paramType) IsAny() bool {
-	return p > 0
+func (bc *baseCheck) SetCheck(check byte) {
+	*bc |= baseCheck(check)
 }
 
-func (p *paramType) SetSingle() {
-	*p |= paramTypeSingle
+func (bc baseCheck) IsEmpty() bool {
+	return bc&0xfffffcff == 0
 }
 
-func (p *paramType) SetWildcard() {
-	*p |= paramTypeWildcard
+func (bc baseCheck) Index() int {
+	return int(bc >> 10)
 }
 
-const (
-	paramTypeSingle = 1 << iota
-	paramTypeWildcard
-)
+func (bc *baseCheck) SetIndex(i int) {
+	*bc |= baseCheck(i) << 10
+}
+
+func (bc baseCheck) IsSingleParam() bool {
+	return (bc>>8)&0x01 == 1
+}
+
+func (bc baseCheck) IsWildcardParam() bool {
+	return (bc>>9)&0x01 == 1
+}
+
+func (bc baseCheck) IsAnyParam() bool {
+	return (bc>>8)&3 != 0
+}
+
+func (bc *baseCheck) SetSingleParam() {
+	*bc |= (1 << 8)
+}
+
+func (bc *baseCheck) SetWildcardParam() {
+	*bc |= (1 << 9)
+}
 
 func (da *doubleArray) lookup(path string, params []string, idx int) (int, []string, bool) {
 	indices := make([]uint64, 0, 1)
 	for i := 0; i < len(path); i++ {
-		if da.bc[idx].paramType.IsAny() {
+		if da.bc[idx].IsAnyParam() {
 			indices = append(indices, (uint64(i&0xffffffff)<<32)|uint64(idx&0xffffffff))
 		}
 		c := path[i]
-		next := nextIndex(da.bc[idx].base, c)
-		if da.bc[next].check != c {
+		next := nextIndex(da.bc[idx].Base(), c)
+		if da.bc[next].Check() != c {
 			goto BACKTRACKING
 		}
 		idx = next
 	}
-	if next := nextIndex(da.bc[idx].base, TerminationCharacter); da.bc[next].check == TerminationCharacter {
+	if next := nextIndex(da.bc[idx].Base(), TerminationCharacter); da.bc[next].Check() == TerminationCharacter {
 		return next, params, true
 	}
 	return -1, nil, false
 BACKTRACKING:
 	for j := len(indices) - 1; j >= 0; j-- {
 		i, idx := int((indices[j]>>32)&0xffffffff), int(indices[j]&0xffffffff)
-		if da.bc[idx].paramType.IsParam() {
+		if da.bc[idx].IsSingleParam() {
 			next := NextSeparator(path, i)
-			idx := nextIndex(da.bc[idx].base, ParamCharacter)
+			idx := nextIndex(da.bc[idx].Base(), ParamCharacter)
 			params := append(params, path[i:next])
 			path := path[next:]
 			if idx, params, found := da.lookup(path, params, idx); found {
 				return idx, params, true
 			}
 		}
-		if da.bc[idx].paramType.IsWildcard() {
-			idx := nextIndex(da.bc[idx].base, WildcardCharacter)
+		if da.bc[idx].IsWildcardParam() {
+			idx := nextIndex(da.bc[idx].Base(), WildcardCharacter)
 			params := append(params, path[i:])
 			return idx, params, true
 		}
@@ -178,7 +200,7 @@ func (da *doubleArray) build(srcs []*record, idx, depth int, usedBase map[int]st
 		if err != nil {
 			return err
 		}
-		da.bc[idx].base = -len(da.node)
+		da.bc[idx].SetIndex(len(da.node))
 		da.node = append(da.node, nd)
 	}
 	for _, sib := range siblings {
@@ -194,7 +216,7 @@ func (da *doubleArray) build(srcs []*record, idx, depth int, usedBase map[int]st
 				r.paramNames = append(r.paramNames, name)
 				r.Key = r.Key[next:]
 			}
-			da.bc[idx].paramType.SetSingle()
+			da.bc[idx].SetSingleParam()
 			if err := da.build(records, nextIndex(base, sib.c), 0, usedBase); err != nil {
 				return err
 			}
@@ -203,7 +225,7 @@ func (da *doubleArray) build(srcs []*record, idx, depth int, usedBase map[int]st
 			name := r.Key[depth+1 : len(r.Key)-1]
 			r.paramNames = append(r.paramNames, name)
 			r.Key = ""
-			da.bc[idx].paramType.SetWildcard()
+			da.bc[idx].SetWildcardParam()
 			if err := da.build(records, nextIndex(base, sib.c), 0, usedBase); err != nil {
 				return err
 			}
@@ -218,12 +240,12 @@ func (da *doubleArray) build(srcs []*record, idx, depth int, usedBase map[int]st
 
 // setBase sets BASE.
 func (da *doubleArray) setBase(i, base int) {
-	da.bc[i].base = base
+	da.bc[i].SetBase(base)
 }
 
 // setCheck sets CHECK.
 func (da *doubleArray) setCheck(i int, check byte) {
-	da.bc[i].check = check
+	da.bc[i].SetCheck(check)
 }
 
 // extendBaseCheckArray extends array of BASE/CHECK.
@@ -235,7 +257,7 @@ func (da *doubleArray) extendBaseCheckArray() {
 func (da *doubleArray) findEmptyIndex(start int) int {
 	i := start
 	for ; i < len(da.bc); i++ {
-		if da.bc[i].base == 0 && da.bc[i].check == 0 {
+		if da.bc[i].IsEmpty() {
 			break
 		}
 	}
@@ -255,7 +277,7 @@ func (da *doubleArray) findBase(siblings []sibling, start int, usedBase map[int]
 			if len(da.bc) <= next {
 				da.extendBaseCheckArray()
 			}
-			if len(da.bc) <= next || da.bc[next].base != 0 || da.bc[next].check != 0 {
+			if len(da.bc) <= next || !da.bc[next].IsEmpty() {
 				break
 			}
 		}
