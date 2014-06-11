@@ -94,7 +94,7 @@ func newBaseCheckArray(size int) []baseCheck {
 // baseCheck represents a BASE/CHECK node.
 type baseCheck struct {
 	base      int
-	check     int
+	check     byte
 	paramType paramType
 	i         int
 }
@@ -132,8 +132,9 @@ func (da *doubleArray) lookup(path string, params []string, idx int) (int, []str
 		if da.bc[idx].paramType.IsAny() {
 			indices = append(indices, (uint64(i&0xffffffff)<<32)|uint64(idx&0xffffffff))
 		}
-		next := nextIndex(da.bc[idx].base, path[i])
-		if da.bc[next].check != idx {
+		c := path[i]
+		next := nextIndex(da.bc[idx].base, c)
+		if da.bc[next].check != c {
 			goto BACKTRACKING
 		}
 		idx = next
@@ -176,7 +177,7 @@ func (da *doubleArray) build(srcs []*record, idx, depth int) error {
 		da.node = append(da.node, nd)
 	}
 	for _, sib := range siblings {
-		da.setCheck(nextIndex(base, sib.c), idx)
+		da.setCheck(nextIndex(base, sib.c), sib.c)
 	}
 	for _, sib := range siblings {
 		records := srcs[sib.start:sib.end]
@@ -216,7 +217,7 @@ func (da *doubleArray) setBase(i, base int) {
 }
 
 // setCheck sets CHECK.
-func (da *doubleArray) setCheck(i, check int) {
+func (da *doubleArray) setCheck(i int, check byte) {
 	da.bc[i].check = check
 }
 
