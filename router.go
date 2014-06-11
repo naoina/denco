@@ -65,7 +65,7 @@ func (rt *Router) Build(records []Record) error {
 	for _, r := range statics {
 		rt.static[r.Key] = r.Value
 	}
-	if err := rt.param.build(params, 1, 0); err != nil {
+	if err := rt.param.build(params, 1, 0, make(map[int]struct{})); err != nil {
 		return err
 	}
 	return nil
@@ -167,9 +167,9 @@ BACKTRACKING:
 }
 
 // build builds double-array from records.
-func (da *doubleArray) build(srcs []*record, idx, depth int) error {
+func (da *doubleArray) build(srcs []*record, idx, depth int, usedBase map[int]struct{}) error {
 	sort.Sort(recordSlice(srcs))
-	base, siblings, leaf, err := da.arrange(srcs, idx, depth)
+	base, siblings, leaf, err := da.arrange(srcs, idx, depth, usedBase)
 	if err != nil {
 		return err
 	}
@@ -195,7 +195,7 @@ func (da *doubleArray) build(srcs []*record, idx, depth int) error {
 				r.Key = r.Key[next:]
 			}
 			da.bc[idx].paramType.SetSingle()
-			if err := da.build(records, nextIndex(base, sib.c), 0); err != nil {
+			if err := da.build(records, nextIndex(base, sib.c), 0, usedBase); err != nil {
 				return err
 			}
 		case WildcardCharacter:
@@ -204,11 +204,11 @@ func (da *doubleArray) build(srcs []*record, idx, depth int) error {
 			r.paramNames = append(r.paramNames, name)
 			r.Key = ""
 			da.bc[idx].paramType.SetWildcard()
-			if err := da.build(records, nextIndex(base, sib.c), 0); err != nil {
+			if err := da.build(records, nextIndex(base, sib.c), 0, usedBase); err != nil {
 				return err
 			}
 		default:
-			if err := da.build(records, nextIndex(base, sib.c), depth+1); err != nil {
+			if err := da.build(records, nextIndex(base, sib.c), depth+1, usedBase); err != nil {
 				return err
 			}
 		}
@@ -243,26 +243,31 @@ func (da *doubleArray) findEmptyIndex(start int) int {
 }
 
 // findBase returns good BASE.
-func (da *doubleArray) findBase(siblings []sibling, start int) (base int) {
-	idx := start + 1
-	firstChar := siblings[0].c
-	for ; idx < len(da.bc); idx = da.findEmptyIndex(idx + 1) {
+func (da *doubleArray) findBase(siblings []sibling, start int, usedBase map[int]struct{}) (base int) {
+	for idx, firstChar := start+1, siblings[0].c; ; idx = da.findEmptyIndex(idx + 1) {
 		base = nextIndex(idx, firstChar)
+		if _, used := usedBase[base]; used {
+			continue
+		}
 		i := 0
 		for ; i < len(siblings); i++ {
-			if next := nextIndex(base, siblings[i].c); len(da.bc) <= next || da.bc[next].base != 0 || da.bc[next].check != 0 {
+			next := nextIndex(base, siblings[i].c)
+			if len(da.bc) <= next {
+				da.extendBaseCheckArray()
+			}
+			if len(da.bc) <= next || da.bc[next].base != 0 || da.bc[next].check != 0 {
 				break
 			}
 		}
 		if i == len(siblings) {
-			return base
+			break
 		}
 	}
-	da.extendBaseCheckArray()
-	return nextIndex(idx, firstChar)
+	usedBase[base] = struct{}{}
+	return base
 }
 
-func (da *doubleArray) arrange(records []*record, idx, depth int) (base int, siblings []sibling, leaf *record, err error) {
+func (da *doubleArray) arrange(records []*record, idx, depth int, usedBase map[int]struct{}) (base int, siblings []sibling, leaf *record, err error) {
 	siblings, leaf, err = makeSiblings(records, depth)
 	if err != nil {
 		return -1, nil, nil, err
@@ -270,7 +275,7 @@ func (da *doubleArray) arrange(records []*record, idx, depth int) (base int, sib
 	if len(siblings) < 1 {
 		return -1, nil, leaf, nil
 	}
-	base = da.findBase(siblings, idx)
+	base = da.findBase(siblings, idx, usedBase)
 	da.setBase(idx, base)
 	return base, siblings, leaf, err
 }
