@@ -277,7 +277,7 @@ func (da *doubleArray) findBase(siblings []sibling, start int, usedBase map[int]
 			if len(da.bc) <= next {
 				da.extendBaseCheckArray()
 			}
-			if len(da.bc) <= next || !da.bc[next].IsEmpty() {
+			if !da.bc[next].IsEmpty() {
 				break
 			}
 		}
