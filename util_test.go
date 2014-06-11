@@ -20,6 +20,7 @@ func TestNextSeparator(t *testing.T) {
 		{"/foo/bar.html", 1, 4},
 		{"/foo/bar.html/baz.png", 5, 8},
 		{"/foo/bar.html/baz.png", 10, 13},
+		{"path#", 0, 4},
 	} {
 		actual := denco.NextSeparator(testcase.path, testcase.start)
 		expected := testcase.expected

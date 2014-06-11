@@ -14,6 +14,9 @@ const (
 	// A special character for wildcard path parameter.
 	WildcardCharacter = '*'
 
+	// TerminalCharacter is a special character for end of path.
+	TerminationCharacter = '#'
+
 	// Block size of array of BASE/CHECK of Double-Array.
 	blockSize = 256
 )
@@ -43,7 +46,7 @@ func (rt *Router) Lookup(path string) (data interface{}, params []Param, found b
 	if !found {
 		return nil, nil, false
 	}
-	nd := rt.param.node[rt.param.bc[idx].i]
+	nd := rt.param.node[-rt.param.bc[idx].base]
 	if nd == nil {
 		return nil, nil, false
 	}
@@ -96,7 +99,6 @@ type baseCheck struct {
 	base      int
 	check     byte
 	paramType paramType
-	i         int
 }
 
 type paramType uint8
@@ -139,7 +141,10 @@ func (da *doubleArray) lookup(path string, params []string, idx int) (int, []str
 		}
 		idx = next
 	}
-	return idx, params, true
+	if next := nextIndex(da.bc[idx].base, TerminationCharacter); da.bc[next].check == TerminationCharacter {
+		return next, params, true
+	}
+	return -1, nil, false
 BACKTRACKING:
 	for j := len(indices) - 1; j >= 0; j-- {
 		i, idx := int((indices[j]>>32)&0xffffffff), int(indices[j]&0xffffffff)
@@ -173,7 +178,7 @@ func (da *doubleArray) build(srcs []*record, idx, depth int) error {
 		if err != nil {
 			return err
 		}
-		da.bc[idx].i = len(da.node)
+		da.bc[idx].base = -len(da.node)
 		da.node = append(da.node, nd)
 	}
 	for _, sib := range siblings {
@@ -195,7 +200,7 @@ func (da *doubleArray) build(srcs []*record, idx, depth int) error {
 			}
 		case WildcardCharacter:
 			r := records[0]
-			name := r.Key[depth+1:]
+			name := r.Key[depth+1 : len(r.Key)-1]
 			r.paramNames = append(r.paramNames, name)
 			r.Key = ""
 			da.bc[idx].paramType.SetWildcard()
@@ -366,8 +371,10 @@ type record struct {
 // makeRecords returns the records that use to build Double-Arrays.
 func makeRecords(srcs []Record) (statics, params []*record) {
 	spChars := string([]byte{ParamCharacter, WildcardCharacter})
+	termChar := string(TerminationCharacter)
 	for _, r := range srcs {
 		if strings.ContainsAny(r.Key, spChars) {
+			r.Key += termChar
 			params = append(params, &record{Record: r})
 		} else {
 			statics = append(statics, &record{Record: r})

@@ -2,7 +2,7 @@ package denco
 
 // NextSeparator returns an index of next separator in path.
 func NextSeparator(path string, start int) int {
-	for start < len(path) && path[start] != '/' && path[start] != '.' {
+	for start < len(path) && path[start] != '/' && path[start] != '.' && path[start] != TerminationCharacter {
 		start++
 	}
 	return start
