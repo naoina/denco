@@ -99,7 +99,7 @@ func (bc *baseCheck) SetBase(base int) {
 }
 
 func (bc baseCheck) Check() byte {
-	return byte(bc & 0xff)
+	return byte(bc)
 }
 
 func (bc *baseCheck) SetCheck(check byte) {
@@ -119,15 +119,15 @@ func (bc *baseCheck) SetIndex(i int) {
 }
 
 func (bc baseCheck) IsSingleParam() bool {
-	return (bc>>8)&0x01 == 1
+	return bc&paramTypeSingle == paramTypeSingle
 }
 
 func (bc baseCheck) IsWildcardParam() bool {
-	return (bc>>9)&0x01 == 1
+	return bc&paramTypeWildcard == paramTypeWildcard
 }
 
 func (bc baseCheck) IsAnyParam() bool {
-	return (bc>>8)&3 != 0
+	return bc&paramTypeAny != 0
 }
 
 func (bc *baseCheck) SetSingleParam() {
@@ -138,11 +138,17 @@ func (bc *baseCheck) SetWildcardParam() {
 	*bc |= (1 << 9)
 }
 
+const (
+	paramTypeSingle   = 0x0100
+	paramTypeWildcard = 0x0200
+	paramTypeAny      = 0x0300
+)
+
 func (da *doubleArray) lookup(path string, idx int) (*node, []string, bool) {
 	indices := make([]uint64, 0, 1)
 	for i := 0; i < len(path); i++ {
 		if da.bc[idx].IsAnyParam() {
-			indices = append(indices, (uint64(i&0xffffffff)<<32)|uint64(idx&0xffffffff))
+			indices = append(indices, (uint64(i)<<32)|uint64(idx&0xffffffff))
 		}
 		c := path[i]
 		next := nextIndex(da.bc[idx].Base(), c)
@@ -157,7 +163,7 @@ func (da *doubleArray) lookup(path string, idx int) (*node, []string, bool) {
 	return nil, nil, false
 BACKTRACKING:
 	for j := len(indices) - 1; j >= 0; j-- {
-		i, idx := int((indices[j]>>32)&0xffffffff), int(indices[j]&0xffffffff)
+		i, idx := int(indices[j]>>32), int(indices[j]&0xffffffff)
 		if da.bc[idx].IsSingleParam() {
 			next := NextSeparator(path, i)
 			idx := nextIndex(da.bc[idx].Base(), ParamCharacter)
