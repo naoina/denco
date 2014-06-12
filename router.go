@@ -165,11 +165,11 @@ BACKTRACKING:
 	for j := len(indices) - 1; j >= 0; j-- {
 		i, idx := int(indices[j]>>32), int(indices[j]&0xffffffff)
 		if da.bc[idx].IsSingleParam() {
-			next := NextSeparator(path, i)
 			idx := nextIndex(da.bc[idx].Base(), ParamCharacter)
 			if idx >= len(da.bc) {
 				break
 			}
+			next := NextSeparator(path, i)
 			if nd, params, found := da.lookup(path[next:], idx); found {
 				return nd, append([]string{path[i:next]}, params...), true
 			}
