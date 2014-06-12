@@ -85,6 +85,7 @@ func TestRouter_Lookup(t *testing.T) {
 		{"/orgs/:org/events", "testroute1", []denco.Param{{"org", ":org"}}, true},
 		{"/notifications/threads/:id", "testroute2", []denco.Param{{"id", ":id"}}, true},
 	}
+	runLookupTest(t, records, testcases)
 }
 
 func Testdenco_Lookup_withManyRoutes(t *testing.T) {
