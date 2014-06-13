@@ -16,6 +16,9 @@ const (
 
 	// TerminalCharacter is a special character for end of path.
 	TerminationCharacter = '#'
+
+	// MaxSize is max size of records and internal slice.
+	MaxSize = (1 << 22) - 1
 )
 
 // Router represents a URL router.
@@ -52,6 +55,9 @@ func (rt *Router) Lookup(path string) (data interface{}, params []Param, found b
 // Build builds URL router from records.
 func (rt *Router) Build(records []Record) error {
 	statics, params := makeRecords(records)
+	if len(params) > MaxSize {
+		return fmt.Errorf("denco: too many records")
+	}
 	for _, r := range statics {
 		rt.static[r.Key] = r.Value
 	}
@@ -286,6 +292,9 @@ func (da *doubleArray) arrange(records []*record, idx, depth int, usedBase map[i
 		return -1, nil, leaf, nil
 	}
 	base = da.findBase(siblings, idx, usedBase)
+	if base > MaxSize {
+		return -1, nil, nil, fmt.Errorf("denco: too many elements of internal slice")
+	}
 	da.setBase(idx, base)
 	return base, siblings, leaf, err
 }
