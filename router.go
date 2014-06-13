@@ -39,7 +39,7 @@ func (rt *Router) Lookup(path string) (data interface{}, params []Param, found b
 	if data, found := rt.static[path]; found {
 		return data, nil, true
 	}
-	nd, params, found := rt.param.lookup(path, 1)
+	nd, params, found := rt.param.lookup(path, params, 1)
 	if !found {
 		return nil, nil, false
 	}
@@ -141,7 +141,7 @@ const (
 	paramTypeAny      = 0x0300
 )
 
-func (da *doubleArray) lookup(path string, idx int) (*node, []Param, bool) {
+func (da *doubleArray) lookup(path string, params []Param, idx int) (*node, []Param, bool) {
 	indices := make([]uint64, 0, 1)
 	for i := 0; i < len(path); i++ {
 		if da.bc[idx].IsAnyParam() {
@@ -155,7 +155,7 @@ func (da *doubleArray) lookup(path string, idx int) (*node, []Param, bool) {
 		idx = next
 	}
 	if next := nextIndex(da.bc[idx].Base(), TerminationCharacter); da.bc[next].Check() == TerminationCharacter {
-		return da.node[da.bc[next].Index()], nil, true
+		return da.node[da.bc[next].Index()], params, true
 	}
 	return nil, nil, false
 BACKTRACKING:
@@ -167,13 +167,14 @@ BACKTRACKING:
 				break
 			}
 			next := NextSeparator(path, i)
-			if nd, params, found := da.lookup(path[next:], idx); found {
-				return nd, append([]Param{{Value: path[i:next]}}, params...), true
+			params := append(params, Param{Value: path[i:next]})
+			if nd, params, found := da.lookup(path[next:], params, idx); found {
+				return nd, params, true
 			}
 		}
 		if da.bc[idx].IsWildcardParam() {
 			idx := nextIndex(da.bc[idx].Base(), WildcardCharacter)
-			params := []Param{{Value: path[i:]}}
+			params := append(params, Param{Value: path[i:]})
 			return da.node[da.bc[idx].Index()], params, true
 		}
 	}
