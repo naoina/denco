@@ -10,34 +10,97 @@ import (
 	"github.com/naoina/denco"
 )
 
-func BenchmarkRouterLookup100(b *testing.B) {
-	benchmarkRouterLookup(b, 100)
+func BenchmarkRouterLookupStatic100(b *testing.B) {
+	benchmarkRouterLookupStatic(b, 100)
 }
 
-func BenchmarkRouterLookup300(b *testing.B) {
-	benchmarkRouterLookup(b, 300)
+func BenchmarkRouterLookupStatic300(b *testing.B) {
+	benchmarkRouterLookupStatic(b, 300)
 }
 
-func BenchmarkRouterLookup700(b *testing.B) {
-	benchmarkRouterLookup(b, 700)
+func BenchmarkRouterLookupStatic700(b *testing.B) {
+	benchmarkRouterLookupStatic(b, 700)
 }
 
-func BenchmarkRouterBuild100(b *testing.B) {
-	benchmarkRouterBuild(b, 100)
+func BenchmarkRouterLookupSingleParam100(b *testing.B) {
+	records := makeTestSingleParamRecords(100)
+	benchmarkRouterLookupSingleParam(b, records)
 }
 
-func BenchmarkRouterBuild300(b *testing.B) {
-	benchmarkRouterBuild(b, 300)
+func BenchmarkRouterLookupSingleParam300(b *testing.B) {
+	records := makeTestSingleParamRecords(300)
+	benchmarkRouterLookupSingleParam(b, records)
 }
 
-func BenchmarkRouterBuild700(b *testing.B) {
-	benchmarkRouterBuild(b, 700)
+func BenchmarkRouterLookupSingleParam700(b *testing.B) {
+	records := makeTestSingleParamRecords(700)
+	benchmarkRouterLookupSingleParam(b, records)
 }
 
-func benchmarkRouterLookup(b *testing.B, n int) {
+func BenchmarkRouterLookupSingle2Param100(b *testing.B) {
+	records := makeTestSingle2ParamRecords(100)
+	benchmarkRouterLookupSingleParam(b, records)
+}
+
+func BenchmarkRouterLookupSingle2Param300(b *testing.B) {
+	records := makeTestSingle2ParamRecords(300)
+	benchmarkRouterLookupSingleParam(b, records)
+}
+
+func BenchmarkRouterLookupSingle2Param700(b *testing.B) {
+	records := makeTestSingle2ParamRecords(700)
+	benchmarkRouterLookupSingleParam(b, records)
+}
+
+func BenchmarkRouterBuildStatic100(b *testing.B) {
+	records := makeTestStaticRecords(100)
+	benchmarkRouterBuild(b, records)
+}
+
+func BenchmarkRouterBuildStatic300(b *testing.B) {
+	records := makeTestStaticRecords(300)
+	benchmarkRouterBuild(b, records)
+}
+
+func BenchmarkRouterBuildStatic700(b *testing.B) {
+	records := makeTestStaticRecords(700)
+	benchmarkRouterBuild(b, records)
+}
+
+func BenchmarkRouterBuildSingleParam100(b *testing.B) {
+	records := makeTestSingleParamRecords(100)
+	benchmarkRouterBuild(b, records)
+}
+
+func BenchmarkRouterBuildSingleParam300(b *testing.B) {
+	records := makeTestSingleParamRecords(300)
+	benchmarkRouterBuild(b, records)
+}
+
+func BenchmarkRouterBuildSingleParam700(b *testing.B) {
+	records := makeTestSingleParamRecords(700)
+	benchmarkRouterBuild(b, records)
+}
+
+func BenchmarkRouterBuildSingle2Param100(b *testing.B) {
+	records := makeTestSingle2ParamRecords(100)
+	benchmarkRouterBuild(b, records)
+}
+
+func BenchmarkRouterBuildSingle2Param300(b *testing.B) {
+	records := makeTestSingle2ParamRecords(300)
+	benchmarkRouterBuild(b, records)
+}
+
+func BenchmarkRouterBuildSingle2Param700(b *testing.B) {
+	records := makeTestSingle2ParamRecords(700)
+	benchmarkRouterBuild(b, records)
+}
+
+func benchmarkRouterLookupStatic(b *testing.B, n int) {
 	b.StopTimer()
 	router := denco.New()
-	records := makeTestRecords(n)
+	records := makeTestStaticRecords(n)
 	if err := router.Build(records); err != nil {
 		b.Fatal(err)
 	}
@@ -50,10 +113,21 @@ func benchmarkRouterLookup(b *testing.B, n int) {
 	}
 }
 
-func benchmarkRouterBuild(b *testing.B, n int) {
-	b.StopTimer()
-	records := makeTestRecords(n)
-	b.StartTimer()
+func benchmarkRouterLookupSingleParam(b *testing.B, records []denco.Record) {
+	router := denco.New()
+	if err := router.Build(records); err != nil {
+		b.Fatal(err)
+	}
+	record := pickTestRecord(records)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, _, found := router.Lookup(record.Key); !found {
+			b.Fail()
+		}
+	}
+}
+
+func benchmarkRouterBuild(b *testing.B, records []denco.Record) {
 	for i := 0; i < b.N; i++ {
 		router := denco.New()
 		if err := router.Build(records); err != nil {
@@ -62,10 +136,26 @@ func benchmarkRouterBuild(b *testing.B, n int) {
 	}
 }
 
-func makeTestRecords(n int) []denco.Record {
+func makeTestStaticRecords(n int) []denco.Record {
 	records := make([]denco.Record, n)
 	for i := 0; i < n; i++ {
 		records[i] = denco.NewRecord("/"+randomString(50), fmt.Sprintf("testroute%d", i))
+	}
+	return records
+}
+
+func makeTestSingleParamRecords(n int) []denco.Record {
+	records := make([]denco.Record, n)
+	for i := 0; i < len(records); i++ {
+		records[i] = denco.NewRecord(fmt.Sprintf("/user%d/:name", i), fmt.Sprintf("testroute%d", i))
+	}
+	return records
+}
+
+func makeTestSingle2ParamRecords(n int) []denco.Record {
+	records := make([]denco.Record, n)
+	for i := 0; i < len(records); i++ {
+		records[i] = denco.NewRecord(fmt.Sprintf("/user%d/:name/comment/:id", i), fmt.Sprintf("testroute%d", i))
 	}
 	return records
 }
