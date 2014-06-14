@@ -10,31 +10,31 @@ import (
 	"github.com/naoina/denco"
 )
 
-func BenchmarkRouter_Lookup_100(b *testing.B) {
-	benchmarkRouter_Lookup(b, 100)
+func BenchmarkRouterLookup100(b *testing.B) {
+	benchmarkRouterLookup(b, 100)
 }
 
-func BenchmarkRouter_Lookup_300(b *testing.B) {
-	benchmarkRouter_Lookup(b, 300)
+func BenchmarkRouterLookup300(b *testing.B) {
+	benchmarkRouterLookup(b, 300)
 }
 
-func BenchmarkRouter_Lookup_700(b *testing.B) {
-	benchmarkRouter_Lookup(b, 700)
+func BenchmarkRouterLookup700(b *testing.B) {
+	benchmarkRouterLookup(b, 700)
 }
 
-func BenchmarkRouter_Build_100(b *testing.B) {
-	benchmarkRouter_Build(b, 100)
+func BenchmarkRouterBuild100(b *testing.B) {
+	benchmarkRouterBuild(b, 100)
 }
 
-func BenchmarkRouter_Build_300(b *testing.B) {
-	benchmarkRouter_Build(b, 300)
+func BenchmarkRouterBuild300(b *testing.B) {
+	benchmarkRouterBuild(b, 300)
 }
 
-func BenchmarkRouter_Build_700(b *testing.B) {
-	benchmarkRouter_Build(b, 700)
+func BenchmarkRouterBuild700(b *testing.B) {
+	benchmarkRouterBuild(b, 700)
 }
 
-func benchmarkRouter_Lookup(b *testing.B, n int) {
+func benchmarkRouterLookup(b *testing.B, n int) {
 	b.StopTimer()
 	router := denco.New()
 	records := makeTestRecords(n)
@@ -50,7 +50,7 @@ func benchmarkRouter_Lookup(b *testing.B, n int) {
 	}
 }
 
-func benchmarkRouter_Build(b *testing.B, n int) {
+func benchmarkRouterBuild(b *testing.B, n int) {
 	b.StopTimer()
 	records := makeTestRecords(n)
 	b.StartTimer()

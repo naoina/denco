@@ -8,13 +8,13 @@ import (
 )
 
 const (
-	// A special character for path parameter.
+	// ParamCharacter is a special character for path parameter.
 	ParamCharacter = ':'
 
-	// A special character for wildcard path parameter.
+	// WildcardCharacter is a special character for wildcard path parameter.
 	WildcardCharacter = '*'
 
-	// TerminalCharacter is a special character for end of path.
+	// TerminationCharacter is a special character for end of path.
 	TerminationCharacter = '#'
 
 	// MaxSize is max size of records and internal slice.

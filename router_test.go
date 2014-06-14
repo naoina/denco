@@ -88,7 +88,7 @@ func TestRouter_Lookup(t *testing.T) {
 	runLookupTest(t, records, testcases)
 }
 
-func Testdenco_Lookup_withManyRoutes(t *testing.T) {
+func TestRouter_Lookup_withManyRoutes(t *testing.T) {
 	n := 1000
 	rand.Seed(time.Now().UnixNano())
 	records := make([]denco.Record, n)
