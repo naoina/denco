@@ -34,10 +34,10 @@ type route struct {
 func main() {
 	router := denco.New()
 	router.Build([]denco.Record{
-		denco.NewRecord("/", &route{"root"}),
-		denco.NewRecord("/user/:id", &route{"user"}),
-		denco.NewRecord("/user/:name/:id", &route{"username"}),
-		denco.NewRecord("/static/*filepath", &route{"static"}),
+		{"/", &route{"root"}},
+		{"/user/:id", &route{"user"}},
+		{"/user/:name/:id", &route{"username"}},
+		{"/static/*filepath", &route{"static"}},
 	})
 
 	data, params, found := router.Lookup("/")
@@ -59,6 +59,41 @@ func main() {
 ```
 
 See [Godoc](http://godoc.org/github.com/naoina/denco) for more details.
+
+### URL patterns
+
+Denco's route matching strategy is "most nearly matching".
+
+When routes `/:name` and `/alice` have been built, URI `/alice` matches the route `/alice`, not `/:name`.
+Because URI `/alice` is more match with the route `/alice` than `/:name`.
+
+For more example, when routes below have been built:
+
+```
+/user/alice
+/user/:name
+/user/:name/:id
+/user/alice/:id
+/user/:id/bob
+```
+
+Routes matching are:
+
+```
+/user/alice      => "/user/alice" (no match with "/user/:name")
+/user/bob        => "/user/:name"
+/user/naoina/1   => "/user/:name/1"
+/user/alice/1    => "/user/alice/:id" (no match with "/user/:name/:id")
+/user/1/bob      => "/user/:id/bob"   (no match with "/user/:name/:id")
+/user/alice/bob  => "/user/alice/:id" (no match with "/user/:name/:id" and "/user/:id/bob")
+```
+
+## Limitation
+
+Denco has some limitations below.
+
+* Number of param records (such as `/:name`) must be less than 2^22
+* Number of elements of internal slice must be less than 2^22
 
 ## Benchmarks
 
