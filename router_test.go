@@ -231,6 +231,18 @@ func TestRouter_Lookup(t *testing.T) {
 		{"/notifications/threads/:id", "testroute2", []denco.Param{{"id", ":id"}}, true},
 	}
 	runLookupTest(t, records, testcases)
+
+	runLookupTest(t, []denco.Record{
+		{"/", "route2"},
+	}, []testcase{
+		{"/user/alice", nil, nil, false},
+	})
+
+	runLookupTest(t, []denco.Record{
+		{"/user/:name", "route1"},
+	}, []testcase{
+		{"/", nil, nil, false},
+	})
 }
 
 func TestRouter_Lookup_withManyRoutes(t *testing.T) {

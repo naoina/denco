@@ -42,6 +42,9 @@ func (rt *Router) Lookup(path string) (data interface{}, params Params, found bo
 	if data, found := rt.static[path]; found {
 		return data, nil, true
 	}
+	if len(rt.param.node) == 1 {
+		return nil, nil, false
+	}
 	nd, params, found := rt.param.lookup(path, params, 1)
 	if !found {
 		return nil, nil, false
@@ -174,7 +177,7 @@ func (da *doubleArray) lookup(path string, params []Param, idx int) (*node, []Pa
 		}
 		idx = next
 	}
-	if next := nextIndex(da.bc[idx].Base(), TerminationCharacter); da.bc[next].Check() == TerminationCharacter {
+	if next := nextIndex(da.bc[idx].Base(), TerminationCharacter); next < len(da.bc) && da.bc[next].Check() == TerminationCharacter {
 		return da.node[da.bc[next].Index()], params, true
 	}
 	return nil, nil, false
