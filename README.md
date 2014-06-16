@@ -1,6 +1,6 @@
 # Denco [![Build Status](https://travis-ci.org/naoina/denco.png?branch=master)](https://travis-ci.org/naoina/denco)
 
-The fast URL router for [Go](http://golang.org).
+The fast and flexible URL router for [Go](http://golang.org).
 
 Denco is based on Double-Array implementation of [Kocha-urlrouter](https://github.com/naoina/kocha-urlrouter), but does some optimizations for performance improvement.
 
