@@ -1,22 +1,57 @@
 # Denco [![Build Status](https://travis-ci.org/naoina/denco.png?branch=master)](https://travis-ci.org/naoina/denco)
 
-The fast and flexible URL router for [Go](http://golang.org).
+The fast and flexible HTTP request router for [Go](http://golang.org).
 
-Denco is based on Double-Array implementation of [Kocha-urlrouter](https://github.com/naoina/kocha-urlrouter), but does some optimizations for performance improvement.
+Denco is based on Double-Array implementation of [Kocha-urlrouter](https://github.com/naoina/kocha-urlrouter).
+However, Denco is optimized and some features added.
 
 ## Features
 
 * Fast (See [go-http-routing-benchmark](https://github.com/naoina/go-http-routing-benchmark))
-* URL patterns (`/foo/:bar` and `/foo/*wildcard`)
-* Minimum functions for maximum flexibility
-
-Denco is **NOT** HTTP request multiplexer like Go's `http.ServeMux`, so doesn't provides Go's `http.Handler` interface.
+* [URL patterns](#url-patterns) (`/foo/:bar` and `/foo/*wildcard`)
+* Small (but enough) URL router API
+* HTTP request multiplexer like `http.ServeMux`
 
 ## Installation
 
     go get -u github.com/naoina/denco
 
-## Usage
+## Using as HTTP request multiplexer
+
+```go
+package main
+
+import (
+    "fmt"
+    "log"
+    "net/http"
+
+    "github.com/naoina/denco"
+)
+
+func Index(w http.ResponseWriter, r *http.Request, params denco.Params) {
+    fmt.Fprintf(w, "Welcome to Denco!\n")
+}
+
+func User(w http.ResponseWriter, r *http.Request, params denco.Params) {
+    fmt.Fprintf(w, "Hello %s!\n", params.Get("name"))
+}
+
+func main() {
+    mux := denco.NewMux()
+    handler, err := mux.Build([]denco.Handler{
+        mux.GET("/", Index),
+        mux.GET("/user/:name", User),
+        mux.POST("/user/:name", User),
+    })
+    if err != nil {
+        panic(err)
+    }
+    log.Fatal(http.ListenAndServe(":8080", handler))
+}
+```
+
+## Using as URL router
 
 ```go
 package main
