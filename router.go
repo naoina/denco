@@ -38,7 +38,7 @@ func New() *Router {
 // Lookup returns data and path parameters that associated with path.
 // params is a slice of the Param that arranged in the order in which parameters appeared.
 // e.g. when built routing path is "/path/:id/:name" and given path is "/path/to/1/alice". params order is [{"id": "1"}, {"name": "alice"}], not [{"name": "alice"}, {"id": "1"}].
-func (rt *Router) Lookup(path string) (data interface{}, params []Param, found bool) {
+func (rt *Router) Lookup(path string) (data interface{}, params Params, found bool) {
 	if data, found := rt.static[path]; found {
 		return data, nil, true
 	}
@@ -71,6 +71,20 @@ func (rt *Router) Build(records []Record) error {
 type Param struct {
 	Name  string
 	Value string
+}
+
+// Params represents the name and value of path parameters.
+type Params []Param
+
+// Get gets the first value associated with the given name.
+// If there are no values associated with the key, Get returns "".
+func (ps Params) Get(name string) string {
+	for _, p := range ps {
+		if p.Name == name {
+			return p.Value
+		}
+	}
+	return ""
 }
 
 type doubleArray struct {

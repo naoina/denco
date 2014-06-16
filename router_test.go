@@ -185,8 +185,8 @@ func runLookupTest(t *testing.T, records []denco.Record, testcases []testcase) {
 	}
 	for _, testcase := range testcases {
 		data, params, found := r.Lookup(testcase.path)
-		if !reflect.DeepEqual(data, testcase.value) || !reflect.DeepEqual(params, testcase.params) || !reflect.DeepEqual(found, testcase.found) {
-			t.Errorf("Router.Lookup(%q) => (%#v, %#v, %#v), want (%#v, %#v, %#v)", testcase.path, data, params, found, testcase.value, testcase.params, testcase.found)
+		if !reflect.DeepEqual(data, testcase.value) || !reflect.DeepEqual(params, denco.Params(testcase.params)) || !reflect.DeepEqual(found, testcase.found) {
+			t.Errorf("Router.Lookup(%q) => (%#v, %#v, %#v), want (%#v, %#v, %#v)", testcase.path, data, params, found, testcase.value, denco.Params(testcase.params), testcase.found)
 		}
 	}
 }
@@ -411,4 +411,25 @@ func TestRouter_Build(t *testing.T) {
 			t.Errorf("no error returned by duplicate name of path parameters")
 		}
 	}()
+}
+
+func TestParams_Get(t *testing.T) {
+	params := denco.Params([]denco.Param{
+		{"name1", "value1"},
+		{"name2", "value2"},
+		{"name3", "value3"},
+		{"name1", "value4"},
+	})
+	for _, v := range []struct{ value, expected string }{
+		{"name1", "value1"},
+		{"name2", "value2"},
+		{"name3", "value3"},
+		{"name4", ""},
+	} {
+		actual := params.Get(v.value)
+		expected := v.expected
+		if !reflect.DeepEqual(actual, expected) {
+			t.Errorf("Params.Get(%q) => %#v, want %#v", v.value, actual, expected)
+		}
+	}
 }

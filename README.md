@@ -41,26 +41,66 @@ func main() {
 	})
 
 	data, params, found := router.Lookup("/")
-	// print `&main.route{name:"root"}, []denco.Param(nil), true`.
+	// print `&main.route{name:"root"}, denco.Params(nil), true`.
 	fmt.Printf("%#v, %#v, %#v\n", data, params, found)
 
 	data, params, found = router.Lookup("/user/hoge")
-	// print `&main.route{name:"user"}, []denco.Param{denco.Param{Name:"id", Value:"hoge"}}, true`.
+	// print `&main.route{name:"user"}, denco.Params{denco.Param{Name:"id", Value:"hoge"}}, true`.
 	fmt.Printf("%#v, %#v, %#v\n", data, params, found)
 
 	data, params, found = router.Lookup("/user/hoge/7")
-	// print `&main.route{name:"username"}, []denco.Param{denco.Param{Name:"name", Value:"hoge"}, denco.Param{Name:"id", Value:"7"}}, true`.
+	// print `&main.route{name:"username"}, denco.Params{denco.Param{Name:"name", Value:"hoge"}, denco.Param{Name:"id", Value:"7"}}, true`.
 	fmt.Printf("%#v, %#v, %#v\n", data, params, found)
 
 	data, params, found = router.Lookup("/static/path/to/file")
-	// print `&main.route{name:"static"}, []denco.Param{denco.Param{Name:"filepath", Value:"path/to/file"}}, true`.
+	// print `&main.route{name:"static"}, denco.Params{denco.Param{Name:"filepath", Value:"path/to/file"}}, true`.
 	fmt.Printf("%#v, %#v, %#v\n", data, params, found)
 }
 ```
 
 See [Godoc](http://godoc.org/github.com/naoina/denco) for more details.
 
-### URL patterns
+## Getting the value of path parameter
+
+You can get the value of path parameter by 2 ways.
+
+1. Using [`denco.Params.Get`](http://godoc.org/github.com/naoina/denco#Params.Get) method
+2. Find by loop
+
+```go
+package main
+
+import (
+    "fmt"
+
+    "github.com/naoina/denco"
+)
+
+func main() {
+    router := denco.New()
+    if err := router.Build([]denco.Record{
+        {"/user/:name/:id", "route1"},
+    }); err != nil {
+        panic(err)
+    }
+
+    // 1. Using denco.Params.Get method.
+    _, params, _ := router.Lookup("/user/alice/1")
+    name := params.Get("name")
+    if name != "" {
+        fmt.Printf("Hello %s.\n", name) // prints "Hello alice.".
+    }
+
+    // 2. Find by loop.
+    for _, param := range params {
+        if param.Name == "name" {
+            fmt.Printf("Hello %s.\n", name) // prints "Hello alice.".
+        }
+    }
+}
+```
+
+## URL patterns
 
 Denco's route matching strategy is "most nearly matching".
 
