@@ -168,7 +168,7 @@ func (da *doubleArray) lookup(path string, params []Param, idx int) (*node, []Pa
 	indices := make([]uint64, 0, 1)
 	for i := 0; i < len(path); i++ {
 		if da.bc[idx].IsAnyParam() {
-			indices = append(indices, (uint64(i)<<32)|uint64(idx&0xffffffff))
+			indices = append(indices, (uint64(i)<<32)|(uint64(idx)&0xffffffff))
 		}
 		c := path[i]
 		next := nextIndex(da.bc[idx].Base(), c)
