@@ -172,7 +172,7 @@ Denco has some limitations below.
 
 ## Benchmarks
 
-    cd $GOPATH/github.com/naoina/kocha-urlrouter
+    cd $GOPATH/github.com/naoina/denco
     go test -bench . -benchmem
 
 ## License
