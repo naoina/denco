@@ -23,6 +23,11 @@ const (
 
 // Router represents a URL router.
 type Router struct {
+	// SizeHint expects the maximum number of path parameters in records to Build.
+	// SizeHint will be used to determine the capacity of the memory to allocate.
+	// By default, SizeHint will be determined from given records to Build.
+	SizeHint int
+
 	static map[string]interface{}
 	param  *doubleArray
 }
@@ -30,8 +35,9 @@ type Router struct {
 // New returns a new Router.
 func New() *Router {
 	return &Router{
-		static: make(map[string]interface{}),
-		param:  newDoubleArray(),
+		SizeHint: -1,
+		static:   make(map[string]interface{}),
+		param:    newDoubleArray(),
 	}
 }
 
@@ -45,7 +51,7 @@ func (rt *Router) Lookup(path string) (data interface{}, params Params, found bo
 	if len(rt.param.node) == 1 {
 		return nil, nil, false
 	}
-	nd, params, found := rt.param.lookup(path, params, 1)
+	nd, params, found := rt.param.lookup(path, make([]Param, 0, rt.SizeHint), 1)
 	if !found {
 		return nil, nil, false
 	}
@@ -60,6 +66,16 @@ func (rt *Router) Build(records []Record) error {
 	statics, params := makeRecords(records)
 	if len(params) > MaxSize {
 		return fmt.Errorf("denco: too many records")
+	}
+	if rt.SizeHint < 0 {
+		rt.SizeHint = 0
+		for _, p := range params {
+			for _, k := range p.Key {
+				if k == ParamCharacter || k == WildcardCharacter {
+					rt.SizeHint++
+				}
+			}
+		}
 	}
 	for _, r := range statics {
 		rt.static[r.Key] = r.Value

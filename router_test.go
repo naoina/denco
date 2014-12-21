@@ -425,6 +425,66 @@ func TestRouter_Build(t *testing.T) {
 	}()
 }
 
+func TestRouter_Build_withoutSizeHint(t *testing.T) {
+	for _, v := range []struct {
+		key      string
+		sizeHint int
+	}{
+		{"/user", 0},
+		{"/user/:id", 1},
+		{"/user/:id/post", 1},
+		{"/user/:id/:group", 2},
+		{"/user/:id/post/:cid", 2},
+	} {
+		r := denco.New()
+		actual := r.SizeHint
+		expect := -1
+		if !reflect.DeepEqual(actual, expect) {
+			t.Errorf(`before Build; Router.SizeHint => (%[1]T=%#[1]v); want (%[2]T=%#[2]v)`, actual, expect)
+		}
+		records := []denco.Record{
+			{v.key, "value"},
+		}
+		if err := r.Build(records); err != nil {
+			t.Fatal(err)
+		}
+		actual = r.SizeHint
+		expect = v.sizeHint
+		if !reflect.DeepEqual(actual, expect) {
+			t.Errorf(`Router.Build(%#v); Router.SizeHint => (%[2]T=%#[2]v); want (%[3]T=%#[3]v)`, records, actual, expect)
+		}
+	}
+}
+
+func TestRouter_Build_withSizeHint(t *testing.T) {
+	for _, v := range []struct {
+		key      string
+		sizeHint int
+		expect   int
+	}{
+		{"/user", 0, 0},
+		{"/user", 1, 1},
+		{"/user", 2, 2},
+		{"/user/:id", 3, 3},
+		{"/user/:id/:group", 0, 0},
+		{"/user/:id/:group", 1, 1},
+	} {
+		r := denco.New()
+		r.SizeHint = v.sizeHint
+		records := []denco.Record{
+			{v.key, "value"},
+		}
+		if err := r.Build(records); err != nil {
+			t.Fatal(err)
+		}
+		actual := r.SizeHint
+		expect := v.expect
+		if !reflect.DeepEqual(actual, expect) {
+			t.Errorf(`Router.Build(%#v); Router.SizeHint => (%[2]T=%#[2]v); want (%[3]T=%#[3]v)`, records, actual, expect)
+		}
+	}
+}
+
 func TestParams_Get(t *testing.T) {
 	params := denco.Params([]denco.Param{
 		{"name1", "value1"},
