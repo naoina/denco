@@ -427,14 +427,17 @@ func TestRouter_Build(t *testing.T) {
 
 func TestRouter_Build_withoutSizeHint(t *testing.T) {
 	for _, v := range []struct {
-		key      string
+		keys     []string
 		sizeHint int
 	}{
-		{"/user", 0},
-		{"/user/:id", 1},
-		{"/user/:id/post", 1},
-		{"/user/:id/:group", 2},
-		{"/user/:id/post/:cid", 2},
+		{[]string{"/user"}, 0},
+		{[]string{"/user/:id"}, 1},
+		{[]string{"/user/:id/post"}, 1},
+		{[]string{"/user/:id/:group"}, 2},
+		{[]string{"/user/:id/post/:cid"}, 2},
+		{[]string{"/user/:id/post/:cid", "/admin/:id/post/:cid"}, 2},
+		{[]string{"/user/:id", "/admin/:id/post/:cid"}, 2},
+		{[]string{"/user/:id/post/:cid", "/admin/:id/post/:cid/:type"}, 3},
 	} {
 		r := denco.New()
 		actual := r.SizeHint
@@ -442,8 +445,9 @@ func TestRouter_Build_withoutSizeHint(t *testing.T) {
 		if !reflect.DeepEqual(actual, expect) {
 			t.Errorf(`before Build; Router.SizeHint => (%[1]T=%#[1]v); want (%[2]T=%#[2]v)`, actual, expect)
 		}
-		records := []denco.Record{
-			{v.key, "value"},
+		records := make([]denco.Record, len(v.keys))
+		for i, k := range v.keys {
+			records[i] = denco.Record{k, "value"}
 		}
 		if err := r.Build(records); err != nil {
 			t.Fatal(err)

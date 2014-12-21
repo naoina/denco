@@ -70,10 +70,14 @@ func (rt *Router) Build(records []Record) error {
 	if rt.SizeHint < 0 {
 		rt.SizeHint = 0
 		for _, p := range params {
+			size := 0
 			for _, k := range p.Key {
 				if k == ParamCharacter || k == WildcardCharacter {
-					rt.SizeHint++
+					size++
 				}
+			}
+			if size > rt.SizeHint {
+				rt.SizeHint = size
 			}
 		}
 	}
