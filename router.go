@@ -150,14 +150,6 @@ func (bc baseCheck) IsEmpty() bool {
 	return bc&0xfffffcff == 0
 }
 
-func (bc baseCheck) Index() int {
-	return int(bc >> 10)
-}
-
-func (bc *baseCheck) SetIndex(i int) {
-	*bc |= baseCheck(i) << 10
-}
-
 func (bc baseCheck) IsSingleParam() bool {
 	return bc&paramTypeSingle == paramTypeSingle
 }
@@ -198,7 +190,7 @@ func (da *doubleArray) lookup(path string, params []Param, idx int) (*node, []Pa
 		idx = next
 	}
 	if next := nextIndex(da.bc[idx].Base(), TerminationCharacter); next < len(da.bc) && da.bc[next].Check() == TerminationCharacter {
-		return da.node[da.bc[next].Index()], params, true
+		return da.node[da.bc[next].Base()], params, true
 	}
 	return nil, nil, false
 BACKTRACKING:
@@ -218,7 +210,7 @@ BACKTRACKING:
 		if da.bc[idx].IsWildcardParam() {
 			idx := nextIndex(da.bc[idx].Base(), WildcardCharacter)
 			params := append(params, Param{Value: path[i:]})
-			return da.node[da.bc[idx].Index()], params, true
+			return da.node[da.bc[idx].Base()], params, true
 		}
 	}
 	return nil, nil, false
@@ -236,7 +228,7 @@ func (da *doubleArray) build(srcs []*record, idx, depth int, usedBase map[int]st
 		if err != nil {
 			return err
 		}
-		da.bc[idx].SetIndex(len(da.node))
+		da.bc[idx].SetBase(len(da.node))
 		da.node = append(da.node, nd)
 	}
 	for _, sib := range siblings {
