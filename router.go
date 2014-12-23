@@ -183,11 +183,9 @@ func (da *doubleArray) lookup(path string, params []Param, idx int) (*node, []Pa
 			indices = append(indices, (uint64(i)<<32)|(uint64(idx)&0xffffffff))
 		}
 		c := path[i]
-		next := nextIndex(da.bc[idx].Base(), c)
-		if next >= len(da.bc) || da.bc[next].Check() != c {
+		if idx = nextIndex(da.bc[idx].Base(), c); idx >= len(da.bc) || da.bc[idx].Check() != c {
 			goto BACKTRACKING
 		}
-		idx = next
 	}
 	if next := nextIndex(da.bc[idx].Base(), TerminationCharacter); next < len(da.bc) && da.bc[next].Check() == TerminationCharacter {
 		return da.node[da.bc[next].Base()], params, true

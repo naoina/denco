@@ -89,17 +89,13 @@ func (mux *serveMux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	handler(w, r, params)
 }
 
-func (mux *serveMux) handler(method, path string) (h HandlerFunc, ps []Param) {
+func (mux *serveMux) handler(method, path string) (HandlerFunc, []Param) {
 	if router, found := mux.routers[method]; found {
 		if handler, params, found := router.Lookup(path); found {
-			h = handler.(HandlerFunc)
-			ps = params
+			return handler.(HandlerFunc), params
 		}
 	}
-	if h == nil {
-		h = NotFound
-	}
-	return h, ps
+	return NotFound, nil
 }
 
 // NotFound replies to the request with an HTTP 404 not found error.
