@@ -243,6 +243,13 @@ func TestRouter_Lookup(t *testing.T) {
 	}, []testcase{
 		{"/", nil, nil, false},
 	})
+
+	runLookupTest(t, []denco.Record{
+		{"/*wildcard", "testroute0"},
+		{"/a/:b", "testroute1"},
+	}, []testcase{
+		{"/a", "testroute0", []denco.Param{{"wildcard", "a"}}, true},
+	})
 }
 
 func TestRouter_Lookup_withManyRoutes(t *testing.T) {
