@@ -219,7 +219,7 @@ BACKTRACKING:
 
 // build builds double-array from records.
 func (da *doubleArray) build(srcs []*record, idx, depth int, usedBase map[int]struct{}) error {
-	sort.Sort(recordSlice(srcs))
+	sort.Stable(recordSlice(srcs))
 	base, siblings, leaf, err := da.arrange(srcs, idx, depth, usedBase)
 	if err != nil {
 		return err
