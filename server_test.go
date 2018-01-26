@@ -72,7 +72,7 @@ func TestMux(t *testing.T) {
 	}
 }
 
-func TestNotFound(t *testing.T) {
+func TestDefaultNotFound(t *testing.T) {
 	mux := denco.NewMux()
 	handler, err := mux.Build([]denco.Handler{})
 	if err != nil {
@@ -81,14 +81,35 @@ func TestNotFound(t *testing.T) {
 	server := httptest.NewServer(handler)
 	defer server.Close()
 
-	origNotFound := denco.NotFound
-	defer func() {
-		denco.NotFound = origNotFound
-	}()
-	denco.NotFound = func(w http.ResponseWriter, r *http.Request, params denco.Params) {
+	res, err := http.Get(server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	body, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	actual := string(body)
+	expected := "404 page not found\n"
+	if res.StatusCode != http.StatusNotFound || actual != expected {
+		t.Errorf(`GET "/" => %#v %#v, want %#v %#v`, res.StatusCode, actual, http.StatusNotFound, expected)
+	}
+}
+
+func TestCustomNotFound(t *testing.T) {
+	mux := denco.NewMux()
+	mux.NotFound = func(w http.ResponseWriter, r *http.Request, params denco.Params) {
 		w.WriteHeader(http.StatusServiceUnavailable)
 		fmt.Fprintf(w, "method: %s, path: %s, params: %v", r.Method, r.URL.Path, params)
 	}
+	handler, err := mux.Build([]denco.Handler{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(handler)
+	defer server.Close()
+
 	res, err := http.Get(server.URL)
 	if err != nil {
 		t.Fatal(err)
