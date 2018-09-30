@@ -6,14 +6,14 @@ import (
 
 // Mux represents a multiplexer for HTTP request.
 type Mux struct {
+	// NotFound is the custom NotFound handler for this Mux.
+	// If nil, Denco will use 'denco.NotFound' handler.
 	NotFound HandlerFunc
 }
 
 // NewMux returns a new Mux.
 func NewMux() *Mux {
-	return &Mux{
-		NotFound: defaultNotFound,
-	}
+	return &Mux{}
 }
 
 // GET is shorthand of Mux.Handler("GET", path, handler).
@@ -85,8 +85,7 @@ type serveMux struct {
 
 func newServeMux() *serveMux {
 	return &serveMux{
-		routers:  make(map[string]*Router),
-		NotFound: defaultNotFound,
+		routers: make(map[string]*Router),
 	}
 }
 
@@ -102,9 +101,16 @@ func (mux *serveMux) handler(method, path string) (HandlerFunc, []Param) {
 			return handler.(HandlerFunc), params
 		}
 	}
-	return mux.NotFound, nil
+	if mux.NotFound != nil {
+		return mux.NotFound, nil
+	}
+	return NotFound, nil
 }
 
-var defaultNotFound = func(w http.ResponseWriter, r *http.Request, _ Params) {
+// NotFound replies to the request with an HTTP 404 not found error.
+// NotFound is called when unknown HTTP method or a handler not found.
+// If you want to use globally your own NotFound handler, please overwrite this variable.
+// If you want to use your own NotFound handler for each Mux, use Mux.NotFound instead.
+var NotFound = func(w http.ResponseWriter, r *http.Request, _ Params) {
 	http.NotFound(w, r)
 }

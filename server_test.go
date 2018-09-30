@@ -81,6 +81,14 @@ func TestDefaultNotFound(t *testing.T) {
 	server := httptest.NewServer(handler)
 	defer server.Close()
 
+	origNotFound := denco.NotFound
+	defer func() {
+		denco.NotFound = origNotFound
+	}()
+	denco.NotFound = func(w http.ResponseWriter, r *http.Request, params denco.Params) {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		fmt.Fprintf(w, "method: %s, path: %s, params: %v", r.Method, r.URL.Path, params)
+	}
 	res, err := http.Get(server.URL)
 	if err != nil {
 		t.Fatal(err)
@@ -91,9 +99,9 @@ func TestDefaultNotFound(t *testing.T) {
 		t.Fatal(err)
 	}
 	actual := string(body)
-	expected := "404 page not found\n"
-	if res.StatusCode != http.StatusNotFound || actual != expected {
-		t.Errorf(`GET "/" => %#v %#v, want %#v %#v`, res.StatusCode, actual, http.StatusNotFound, expected)
+	expected := "method: GET, path: /, params: []"
+	if res.StatusCode != http.StatusServiceUnavailable || actual != expected {
+		t.Errorf(`GET "/" => %#v %#v, want %#v %#v`, res.StatusCode, actual, http.StatusServiceUnavailable, expected)
 	}
 }
 
