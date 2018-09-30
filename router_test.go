@@ -250,6 +250,13 @@ func TestRouter_Lookup(t *testing.T) {
 	}, []testcase{
 		{"/a", "testroute0", []denco.Param{{Name: "wildcard", Value: "a"}}, true},
 	})
+
+	runLookupTest(t, []denco.Record{
+		{Key: "/stock-adjustments/:stock-adjustment-id/lines/upload", Value: "lines-up"},
+		{Key: "/stock-adjustments/:stock-adjustment-id/lines/:id", Value: "lines-id"},
+	}, []testcase{
+		{"/stock-adjustments/123/lines/upload", "lines-up", []denco.Param{{Name: "stock-adjustment-id", Value: "123"}}, true},
+	})
 }
 
 func TestRouter_Lookup_withManyRoutes(t *testing.T) {
