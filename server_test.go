@@ -24,7 +24,7 @@ func TestMux(t *testing.T) {
 		mux.PUT("/user/:name", testHandlerFunc),
 		mux.Handler("GET", "/user/handler", testHandlerFunc),
 		mux.Handler("POST", "/user/handler", testHandlerFunc),
-		{"PUT", "/user/inference", testHandlerFunc},
+		{Method: "PUT", Path: "/user/inference", Func: testHandlerFunc},
 	})
 	if err != nil {
 		t.Fatal(err)
